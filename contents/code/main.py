@@ -3,7 +3,7 @@ from shutil import copy2
 from tempfile import mkstemp
 from urlparse import urljoin
 from urllib import urlencode
-from PyQt4.QtCore import SIGNAL, QUrl
+from PyQt4.QtCore import SIGNAL
 from PyKDE4 import plasmascript
 from PyKDE4.plasma import Plasma
 from PyKDE4.kdeui import KIcon
@@ -12,13 +12,15 @@ from PyKDE4.kio import KDirWatch
 
 class ChromiumRunner(plasmascript.Runner):
 
+    DEFAULT_GOOGLE_URL = "https://www.google.com/"
+    
     def init(self):
         self._keywords = {}
         self._bookmarks = []
+        self._googleBaseURL = ChromiumRunner.DEFAULT_GOOGLE_URL
 
         # FIXME: Should go to config
         homePath = os.environ.get("HOME")
-        self._googleBaseURL  = "https://www.google.com/"
         self._pathWebData    = os.path.join(homePath, ".config/chromium/Default/Web Data")
         self._pathLocalState = os.path.join(homePath, ".config/chromium/Local State")
         self._pathBookmarks  = os.path.join(homePath, ".config/chromium/Default/Bookmarks")
@@ -80,33 +82,28 @@ class ChromiumRunner(plasmascript.Runner):
         """
         Read Chromium bookmarks.
         """
-        if os.path.isfile(self._pathBookmarks) and os.access(self._pathBookmarks, os.R_OK):
-            with open(self._pathBookmarks, 'r') as bfile:
-                def walk(element):
-                    for item in element:
-                        if item["type"] == "url":
-                            tmp = { "url": item["url"], "name": item["name"] }
-                            if not tmp in self._bookmarks:
-                                self._bookmarks.append(tmp)
-                        elif item["type"] == "folder":
-                            walk(item["children"])
-                self._bookmarks = []
-                jsonRoots = json.load(bfile)["roots"]
-                for key in jsonRoots:
-                    if jsonRoots[key]['children']:
-                        walk(jsonRoots[key]['children'])
+        with open(self._pathBookmarks, 'r') as bfile:
+            def walk(element):
+                for item in element:
+                    if item["type"] == "url":
+                        tmp = { "url": item["url"], "name": item["name"] }
+                        if not tmp in self._bookmarks:
+                            self._bookmarks.append(tmp)
+                    elif item["type"] == "folder":
+                        walk(item["children"])
+            self._bookmarks = []
+            jsonRoots = json.load(bfile).get("roots", {})
+            for key in (v for v in jsonRoots.itervalues() if type(v) is dict):
+                walk(key.get("children", {}))
 
     def _readLastKnownGoogleUrl(self):
         """
         Read the last_known_google_url from `Local State`.
         """
-        if os.path.isfile(self._pathLocalState) and os.access(self._pathLocalState, os.R_OK):
-            with open(self._pathLocalState, 'r') as localStateFile:
-                localStateJson = json.load(localStateFile)
-                if "browser" in localStateJson \
-                        and "last_known_google_url" in localStateJson["browser"] \
-                        and localStateJson["browser"]["last_known_google_url"]:
-                    self._googleBaseURL = localStateJson["browser"]["last_known_google_url"]
+        with open(self._pathLocalState, 'r') as localStateFile:
+            self._googleBaseURL = json.load(localStateFile)\
+                .get("browser", {})\
+                .get("last_known_google_url", ChromiumRunner.DEFAULT_GOOGLE_URL)
 
     def match(self, context):
         """
