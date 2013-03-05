@@ -1,3 +1,9 @@
+#
+# main.py
+# copyright (c) by Jayme <tunxnet@gmail.com>
+#                  Alexander Lehmann <afwlehmann@googlemail.com>
+#
+
 import os, sqlite3, json
 from shutil import copy2
 from tempfile import mkstemp
