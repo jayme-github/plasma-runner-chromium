@@ -1,14 +1,29 @@
-plasma-runner-chromium
-==============================
+# Chromium runner
 
-Simple Krunner to lauch Chromium bookmarks and keywords (like Konqueror web shortcuts)
+Launch [chromium](http://www.chromium.org/) bookmarks and keywords via [krunner](http://userbase.kde.org/Plasma/Krunner).
 
-Install
--------
-    plasmapkg --type runner --install plasma-runner-chromium
+This is a fork from [plasma-runner-chromium](https://github.com/jayme-github/plasma-runner-chromium).
 
-Update
-------
-    plasmapkg --type runner --upgrade plasma-runner-chromium
-    kquitapp krunner
-    krunner
+## Installation
+
+### Requirements
+- [PyKDE4](http://techbase.kde.org/Development/Languages/Python)
+
+Easily installed, for example, via Ubuntu's package management system like so:
+
+```bash
+sudo apt-get install python3-pykde4
+```
+
+### Once you have what you need
+- Clone this repository
+
+  ```bash
+  git clone https://github.com/afwlehmann/chromium-runner.git
+  ```
+  
+- Use the provided installer
+
+  ```bash
+  . install.sh
+  ```
