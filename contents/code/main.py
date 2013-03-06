@@ -19,14 +19,12 @@
 import os, sqlite3, json
 from shutil import copy2
 from tempfile import mkstemp
-from urlparse import urljoin
-from urllib import urlencode
-from PyQt4.QtCore import SIGNAL, Qt, pyqtSlot, QString, QUrl
 from PyKDE4 import plasmascript
-from PyKDE4.plasma import Plasma
-from PyKDE4.kdeui import KIcon
 from PyKDE4.kdecore import KToolInvocation
+from PyKDE4.kdeui import KIcon
 from PyKDE4.kio import KDirWatch
+from PyKDE4.plasma import Plasma
+from PyQt4.QtCore import SIGNAL, Qt, pyqtSlot, QString, QUrl
 
 class ChromiumRunner(plasmascript.Runner):
 
@@ -107,8 +105,7 @@ class ChromiumRunner(plasmascript.Runner):
             def walk(element):
                 for item in element:
                     if item["type"] == "url":
-                        tmp = { "url"  : QString(item["url"]),
-                                "name" : QString(item["name"]) }
+                        tmp = (QString(item["name"]), QString(item["url"])) # order matters
                         if not tmp in self._bookmarks:
                             self._bookmarks.append(tmp)
                     elif item["type"] == "folder":
@@ -145,20 +142,26 @@ class ChromiumRunner(plasmascript.Runner):
                     self._matchKeyword(context, query, searchTerms, keyword)
 
         # Look for bookmarks
-        flt = lambda bookmark: bookmark["name"].contains(query, Qt.CaseInsensitive)
+        flt = lambda (bmName, _): bmName.contains(query, Qt.CaseInsensitive)
         for bookmark in filter(flt, self._bookmarks):
             self._matchBookmark(context, query, bookmark)
 
     def _matchBookmark(self, context, query, matchedBookmark):
-            url, name = matchedBookmark["url"], matchedBookmark["name"]
-            m = Plasma.QueryMatch(self.runner)
-            m.setText("\"%s\"\n%s" % (name, url))
-            m.setType(Plasma.QueryMatch.ExactMatch)
-            m.setIcon(KIcon("bookmarks"))
-            m.setData(url)
-            context.addMatch(query, m)
-
+        """
+        Add a bookmark match for the given `query` to `context`.
+        """
+        name, url = matchedBookmark
+        m = Plasma.QueryMatch(self.runner)
+        m.setText("\"%s\"\n%s" % (name, url))
+        m.setType(Plasma.QueryMatch.ExactMatch)
+        m.setIcon(KIcon("bookmarks"))
+        m.setData(url)
+        context.addMatch(query, m)
+        
     def _matchKeyword(self, context, query, searchTerms, matchedKeyword):
+        """
+        Add a keyword match for the given `query` to `context`.
+        """
         shortName, url = self._keywords[matchedKeyword]
 
         # This explicit "cast" to QString is necessary in order to prevent
@@ -171,9 +174,10 @@ class ChromiumRunner(plasmascript.Runner):
         # google:baseURL is in attr "last_known_google_url" in ~./config/chromium/Local State
         # Quick workaround...
         if url.startsWith("{google:baseURL}"):
-            url = QUrl("%s/search" % ChromiumRunner.DEFAULT_GOOGLE_URL)
-            url.addQueryItem("q", query)
+            url = QUrl("%s/search" % self._googleBaseURL)
+            url.addQueryItem("q", searchTerms)
             url.addQueryItem("qf", "f")
+            url = url.toString()
 
         m = Plasma.QueryMatch(self.runner)
         m.setText("Query \"%s\" for '%s'\n%s" % (shortName, searchTerms, url))
