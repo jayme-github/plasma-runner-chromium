@@ -21,7 +21,7 @@ from shutil import copy2
 from tempfile import mkstemp
 from urlparse import urljoin
 from urllib import urlencode
-from PyQt4.QtCore import SIGNAL
+from PyQt4.QtCore import SIGNAL, Qt, pyqtSlot, QString, QUrl
 from PyKDE4 import plasmascript
 from PyKDE4.plasma import Plasma
 from PyKDE4.kdeui import KIcon
@@ -30,7 +30,7 @@ from PyKDE4.kio import KDirWatch
 
 class ChromiumRunner(plasmascript.Runner):
 
-    DEFAULT_GOOGLE_URL = "https://www.google.com/"
+    DEFAULT_GOOGLE_URL = "https://www.google.com"
     
     def init(self):
         self._keywords = {}
@@ -65,6 +65,7 @@ class ChromiumRunner(plasmascript.Runner):
         self.connect(self._watcher, SIGNAL("created(QString)"), self._updateData)
         self.connect(self._watcher, SIGNAL("dirty(QString)"), self._updateData)
 
+    @pyqtSlot()
     def _updateData(self, path):
         """
         Called by KDirWatch if a watched dir has changed (dirty).
@@ -76,6 +77,7 @@ class ChromiumRunner(plasmascript.Runner):
         elif path == self._pathBookmarks:
             self._readBookmarks()
 
+    @pyqtSlot()
     def _readKeywords(self):
         """
         Read chromium keywords.
@@ -96,6 +98,7 @@ class ChromiumRunner(plasmascript.Runner):
                 cur.close()
                 os.unlink(dbfile)
 
+    @pyqtSlot()
     def _readBookmarks(self):
         """
         Read Chromium bookmarks.
@@ -104,7 +107,8 @@ class ChromiumRunner(plasmascript.Runner):
             def walk(element):
                 for item in element:
                     if item["type"] == "url":
-                        tmp = { "url": item["url"], "name": item["name"] }
+                        tmp = { "url"  : QString(item["url"]),
+                                "name" : QString(item["name"]) }
                         if not tmp in self._bookmarks:
                             self._bookmarks.append(tmp)
                     elif item["type"] == "folder":
@@ -114,6 +118,7 @@ class ChromiumRunner(plasmascript.Runner):
             for key in (v for v in jsonRoots.itervalues() if type(v) is dict):
                 walk(key.get("children", {}))
 
+    @pyqtSlot()
     def _readLastKnownGoogleUrl(self):
         """
         Read the last_known_google_url from `Local State`.
@@ -127,49 +132,51 @@ class ChromiumRunner(plasmascript.Runner):
         """
         Inspect the current query and provide appropriate matches.
         """
-        if not context.isValid() or not self._keywords or not self._bookmarks:
+        if not context.isValid():
             return
 
         query = context.query().trimmed()
 
-        # look for keywords
+        # Look for keywords
         for keyword in self._keywords:
             if query.startsWith(keyword + " "):
-                searchTerm = query[len(keyword)+1:]
-                if len(searchTerm) >= 2:
-                    self._matchKeyword(context, query, searchTerm, keyword)
+                searchTerms = query[len(keyword)+1:]
+                if len(searchTerms) >= 2:
+                    self._matchKeyword(context, query, searchTerms, keyword)
 
-        # look for bookmarks
-        def queryInBookmarks(element):
-            if query.toLower() in element["name"].lower():
-                return element
-        for bookmark in filter(queryInBookmarks, self._bookmarks):
+        # Look for bookmarks
+        flt = lambda bookmark: bookmark["name"].contains(query, Qt.CaseInsensitive)
+        for bookmark in filter(flt, self._bookmarks):
             self._matchBookmark(context, query, bookmark)
 
     def _matchBookmark(self, context, query, matchedBookmark):
-        url, name = matchedBookmark["url"], matchedBookmark["name"]
-        m = Plasma.QueryMatch(self.runner)
-        m.setText("\"%s\"\n%s" % (name, url))
-        m.setType(Plasma.QueryMatch.ExactMatch)
-        m.setIcon(KIcon("bookmarks"))
-        m.setData(url)
-        context.addMatch(query, m)
+            url, name = matchedBookmark["url"], matchedBookmark["name"]
+            m = Plasma.QueryMatch(self.runner)
+            m.setText("\"%s\"\n%s" % (name, url))
+            m.setType(Plasma.QueryMatch.ExactMatch)
+            m.setIcon(KIcon("bookmarks"))
+            m.setData(url)
+            context.addMatch(query, m)
 
-    def _matchKeyword(self, context, query, searchTerm, matchedKeyword):
+    def _matchKeyword(self, context, query, searchTerms, matchedKeyword):
         shortName, url = self._keywords[matchedKeyword]
 
-        url = url.replace("{searchTerms}", searchTerm)
+        # This explicit "cast" to QString is necessary in order to prevent
+        # python from interpreting `url` as a regular string. This way,
+        # unicode handling is a lot easier.
+        url = QString(url).replace("{searchTerms}", searchTerms)
 
         # Default google search URL is some freaky contruction like:
         # {google:baseURL}search?{google:RLZ}{google:acceptedSuggestion}{google:originalQueryForSuggestion}{google:searchFieldtrialParameter}{google:instantFieldTrialGroupParameter}sourceid=chrome&client=ubuntu&channel=cs&ie={inputEncoding}&q=%s
         # google:baseURL is in attr "last_known_google_url" in ~./config/chromium/Local State
         # Quick workaround...
-        if url.startswith("{google:baseURL}"):
-            url = urljoin(self._googleBaseURL,
-                          "search?" + urlencode({"q": query, "aq": "f"}))
+        if url.startsWith("{google:baseURL}"):
+            url = QUrl("%s/search" % ChromiumRunner.DEFAULT_GOOGLE_URL)
+            url.addQueryItem("q", query)
+            url.addQueryItem("qf", "f")
 
         m = Plasma.QueryMatch(self.runner)
-        m.setText("Query \"%s\" for '%s'\n%s" % (shortName, searchTerm, url))
+        m.setText("Query \"%s\" for '%s'\n%s" % (shortName, searchTerms, url))
         m.setType(Plasma.QueryMatch.ExactMatch)
         m.setIcon(KIcon("chromium-browser"))
         m.setData(url)
