@@ -1,7 +1,7 @@
 #
 # main.py
-# copyright (c) 2013 by Jayme <tunxnet@gmail.com>
-#                       Alexander Lehmann <afwlehmann@googlemail.com>
+# copyright (c) by Jayme <tunxnet@gmail.com>
+#                  Alexander Lehmann <afwlehmann@googlemail.com>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the Free
