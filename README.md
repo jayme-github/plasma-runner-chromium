@@ -2,8 +2,6 @@
 
 Launch [chromium](http://www.chromium.org/) bookmarks and keywords via [krunner](http://userbase.kde.org/Plasma/Krunner).
 
-This is a fork from [plasma-runner-chromium](https://github.com/jayme-github/plasma-runner-chromium).
-
 ## Installation
 
 ### Requirements
@@ -19,7 +17,7 @@ sudo apt-get install python3-pykde4
 - Clone this repository
 
   ```bash
-  git clone https://github.com/afwlehmann/chromium-runner.git
+  git clone https://github.com/jayme-github/chromium-runner.git
   ```
   
 - Use the provided installer
