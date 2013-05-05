@@ -2,6 +2,9 @@
 
 Launch [chromium](http://www.chromium.org/) bookmarks and keywords via [krunner](http://userbase.kde.org/Plasma/Krunner).
 
+With KDE 4.10 it looks like the included bookmarks runner can access chrome/chromium bookmarks, see: https://git.reviewboard.kde.org/r/105673/
+But ther is still need for a cool way to sync chrome/chromium keywords and KDE web-shortcuts.
+
 ## Installation
 
 ### Requirements
